@@ -1,0 +1,18 @@
+POST http://localhost:8081/index
+Content-Type: application/json
+
+{
+  "input": "Hello world"
+}
+
+###
+
+GET http://localhost:8081/status/cbed09c8-112f-446d-8383-9da9db6b6ad2
+
+###
+
+POST http://localhost:8081/status/cbed09c8-112f-446d-8383-9da9db6b6ad2
+
+{
+  "status": "done"
+}

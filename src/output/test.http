@@ -1,0 +1,11 @@
+GET http://localhost:8083/output/for-subject/cfd43255-5376-4020-b6f4-aef6944a882d
+
+###
+
+POST http://localhost:8083/output
+Content-Type: application/json
+
+{
+  "subject_id": "cfd43255-5376-4020-b6f4-aef6944a882d",
+  "output_type": "podcast"
+}

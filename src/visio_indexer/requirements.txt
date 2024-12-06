@@ -1,0 +1,10 @@
+azure-servicebus==7.12.2
+python-dotenv==1.0.1
+azure-cosmos==4.7.0
+openai==1.40.3
+langchain_core==0.2.29
+langchain_text_splitters==0.2.2
+langchain_openai==0.1.21
+langchain_community==0.2.11
+Pillow==9.2.0
+pyvisio==0.1.0

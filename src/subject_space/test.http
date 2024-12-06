@@ -1,0 +1,15 @@
+POST http://localhost:8082/subject
+Content-Type: application/json
+
+{
+  "subject": "Cosmos Db and OpenAI"
+}
+
+###
+
+GET http://localhost:8082/subject/c0284ae9-5dd1-44b9-812a-c0bfd9d3725d
+
+
+###
+
+GET http://localhost:8082/subject/4893f8f1-2300-4c58-87ed-c5e33d3d6574/inputs
