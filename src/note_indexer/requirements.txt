@@ -1,0 +1,9 @@
+requests==2.32.3
+python-dotenv==1.0.1
+azure-servicebus==7.12.2
+azure-cosmos==4.5.1
+openai==1.40.3
+langchain-core==0.2.29
+langchain-text-splitters==0.2.2
+langchain-openai==0.1.21
+langchain-community==0.2.11

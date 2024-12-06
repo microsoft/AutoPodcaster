@@ -1,0 +1,1 @@
+fastapi run indexer.py --port 8081

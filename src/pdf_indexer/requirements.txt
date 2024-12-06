@@ -1,0 +1,10 @@
+requests==2.32.3
+python-dotenv==1.0.1
+azure-servicebus==7.12.2
+azure-storage-blob==12.19.0
+azure-cosmos==4.5.1
+langchain-text-splitters==0.2.2
+langchain-openai==0.1.21
+langchain-community==0.2.11
+pypdf==4.3.1
+tiktoken==0.7.0
