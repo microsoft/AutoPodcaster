@@ -19,6 +19,8 @@ AutoPodcaster was originally created by Pierre Malarme and Jorge Garcia Ximenez.
 [<img src="https://github.com/ivana61.png" width="60px;" style="border-radius: 50%" alt="ivana61" />](https://github.com/ivana61)
 [<img src="https://github.com/rdesutter.png" width="60px;" style="border-radius: 50%" alt="rdesutter" />](https://github.com/rdesutter)
 [<img src="https://github.com/KarolGel.png" width="60px;" style="border-radius: 50%" alt="Karolien Gellynck" />](https://github.com/KarolGel)
+[<img src="https://github.com/pikestel.png" width="60px;" style="border-radius: 50%" alt="PIKESTEL" />](https://github.com/pikestel)
+[<img src="https://github.com/csrvn.png" width="60px;" style="border-radius: 50%" alt="Saravana C" />](https://github.com/csrvn)
 [<img src="https://github.com/mateo762.png" width="60px;" style="border-radius: 50%" alt="Mateo Echeverry Hoyos" />](https://github.com/mateo762)
 
 ## Current state
