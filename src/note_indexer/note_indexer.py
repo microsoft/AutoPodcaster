@@ -82,6 +82,7 @@ def save_to_cosmosdb(input: Input):
 
 def update_status(request_id: str, status: str):
     status = {"status": status}
+    print(f"STATUS_ENDPOINT xd: {status_endpoint}")
     requests.post(
         f"{status_endpoint}/status/{request_id}", json=status)
 
@@ -98,6 +99,8 @@ async def index_note(content: str) -> Input:
     [[Title goes here]]
     $$Description goes here$$
      """
+
+    print(f"Azure OpenAI Key: {os.environ['AZURE_OPENAI_KEY']}")
     # Create the gpt-4o model client
     azure_openai_client = AzureOpenAI(
         api_key=os.environ['AZURE_OPENAI_KEY'],

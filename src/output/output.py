@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
 cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
-subject_space_api_url = os.getenv("SUBJECT_SPACE_API_URL")
+subject_space_api_url = os.getenv("SUBJECT_SPACE_ENDPOINT")
 
 status_cache = {}
 app = FastAPI()
