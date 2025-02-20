@@ -74,3 +74,40 @@
 .styled-table .odd-row {
   background-color: #ffffff;
 }
+
+.file-drop-zone {
+  border: 2px solid white;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 10px;
+  text-align: center;
+  cursor: pointer;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.file-drop-zone:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.file-drop-zone.dragging {
+  border-style: dashed;
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.file-drop-zone.uploading {
+  background-color: rgba(255, 255, 255, 0.1);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}

@@ -3,6 +3,8 @@ import './App.css'
 import { GoEyeClosed } from "react-icons/go";
 import { RxEyeOpen } from "react-icons/rx";
 import { RiDeleteBin6Line } from "react-icons/ri";
+import FileDropZone from './FileDropZone';
+
 
 const indexerURL = 'http://localhost:8081/';
 const subjectURL = 'http://localhost:8082/';
@@ -59,6 +61,15 @@ function App() {
   const [uploading, setUploading] = useState(false);
   const [knowledgeBaseEntries, setKnowledgeBaseEntries] = useState([]);
 
+  const handlePodcastDownload = async (podcastUrl) => {
+    try {
+      // Use no-cors mode and directly open the URL in a new tab
+      window.open(podcastUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading podcast:', error);
+    }
+  };
+
   useEffect(() => {
     // Retrieve the array from local storage when the component mounts
     const storedItems = localStorage.getItem('knowledgeBaseEntries');
@@ -70,7 +81,6 @@ function App() {
     //  setSubjectEntries(JSON.parse(storedSubjects));
     //}
   }, []);
-
 
   //#region Indexer
   const addKnowledgeBaseEntry = (newKnowledgeBaseEntries) => {
@@ -172,9 +182,6 @@ function App() {
   };
 
   const uploadFile = async (file) => {
-
-    document.getElementById('file-drop-zone').enabled = false;
-    document.getElementById('file-drop-zone').style.backgroundColor = '#f0f0f0';
     setUploading(true);
 
     const formData = new FormData();
@@ -199,8 +206,6 @@ function App() {
       console.error('File upload error:', error);
     }
 
-    document.getElementById('file-drop-zone').enabled = true;
-    document.getElementById('file-drop-zone').style.backgroundColor = '#ffffff';
     setUploading(false);
   }
 
@@ -264,6 +269,59 @@ function App() {
     console.log('useEffect');
     fetchSubjects();
   }, []);
+
+  useEffect(() => {
+    // Find any subjects with podcasts in processing state
+    const processingPodcasts = subjects.filter(subject => subject.podcast_status === 2);
+    
+    if (processingPodcasts.length > 0) {
+      // Set up polling interval
+      const interval = setInterval(async () => {
+        for (const subject of processingPodcasts) {
+          try {
+            const response = await fetch(outputURL + 'status/' + subject.podcast_id);
+            
+            if (response.status === 200) {
+              const resultStatus = await response.json();
+              
+              if (resultStatus.status === 'Saved') {
+                // Fetch the complete subject details to get the download URL
+                const outputResponse = await fetch(outputURL + 'output/for-subject/' + subject.subject_id);
+                const outputResult = await outputResponse.json();
+                
+                if (outputResponse.status === 200) {
+                  const podcastOutput = outputResult
+                    .filter(output => output.type === 'podcast')
+                    .sort((a, b) => new Date(b.last_updated) - new Date(a.last_updated))[0];
+
+                  if (podcastOutput) {
+                    // Update the subject with the new status and URL
+                    setSubjectEntries(prevEntries =>
+                      prevEntries.map(entry =>
+                        entry.subject_id === subject.subject_id
+                          ? {
+                              ...entry,
+                              podcast_status: 3,
+                              podcast_url: podcastOutput.url
+                            }
+                          : entry
+                      )
+                    );
+                    StoreSubjects();
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error checking podcast status:', error);
+          }
+        }
+      }, 5000); // Check every 5 seconds
+
+      // Cleanup interval on unmount or when no more processing podcasts
+      return () => clearInterval(interval);
+    }
+  }, [subjects]);
 
   var fetchSubjectIsRunning = false;
   const fetchSubjects = async () => {
@@ -477,6 +535,13 @@ function App() {
                             
                           }
                         }}>Request</button>
+                      ) : result.podcast_status === 3 ? (
+                          <button 
+                            onClick={() => handlePodcastDownload(result.podcast_url)}
+                            className="download-button"
+                          >
+                            Download
+                          </button>
                       ) : result.podcast_status === 2 ? (
                         <button id={"pod2-" + result.subject_id} onClick={async (event) => {
                           try {
@@ -592,21 +657,14 @@ function App() {
         }}
       >
         <form onSubmit={handleTextIndexSubmit}>
-          <div
-            id='file-drop-zone'
+          <FileDropZone
+            dragging={dragging}
+            uploading={uploading}
             onDrop={handleFileDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onClick={handleClick}
-            style={{
-              border: dragging ? '2px dashed #000' : '2px dashed #ccc',
-              padding: '20px',
-              marginTop: '10px',
-              textAlign: 'center',
-            }}
-          >
-            {uploading ? 'Uploading...' : dragging ? 'Drop the PDF or Word file here...' : 'Drag and drop a PDF or Word file here, or click to select a file'}
-          </div>
+          />
           <input
             id="file-input"
             type="file"

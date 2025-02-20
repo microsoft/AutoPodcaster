@@ -1,11 +1,13 @@
 #!/bin/bash
 
-RESOURCE_GROUP_NAME=${RESOURCE_GROUP_NAME:-"rg-autopodcaster"}
+HASH=$(printf "%04d" $(( RANDOM % 10000 )))
+
+RESOURCE_GROUP_NAME=${RESOURCE_GROUP_NAME:-"rg-autopodcaster-$HASH"}
 LOCATION=${LOCATION:-"swedencentral"}
-SERVICEBUS_NAMESPACE_NAME=${SERVICEBUS_NAMESPACE_NAME:-"sb-autopodcaster"}
-COSMOSDB_ACCOUNT_NAME=${COSMOSDB_ACCOUNT_NAME:-"cosno-autopodcaster"}
-AI_SEARCH_SERVICE_NAME=${AI_SEARCH_SERVICE_NAME:-"ais-autopodcaster"}
-STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME:-"stautopodcasterdutchdemo"}
+SERVICEBUS_NAMESPACE_NAME=${SERVICEBUS_NAMESPACE_NAME:-"sb-autopodcaster-$HASH"}
+COSMOSDB_ACCOUNT_NAME=${COSMOSDB_ACCOUNT_NAME:-"cosno-autopodcaster-$HASH"}
+AI_SEARCH_SERVICE_NAME=${AI_SEARCH_SERVICE_NAME:-"ais-autopodcaster-$HASH"}
+STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME:-"stautopodcaster$HASH"}
 
 az group create --name $RESOURCE_GROUP_NAME --location $LOCATION
 az servicebus namespace create --resource-group $RESOURCE_GROUP_NAME --name $SERVICEBUS_NAMESPACE_NAME --location $LOCATION
@@ -37,7 +39,7 @@ STORAGE_CONNECTION_STRING=$(az storage account show-connection-string --name $ST
 
 #generate the SAS token for the downloads container
 STORAGE_ACCOUNT_KEY1=$(az storage account keys list --resource-group $RESOURCE_GROUP_NAME --account-name $STORAGE_ACCOUNT_NAME --query '[0].value' --output tsv)
-DOWNLOADS_SAS_TOKEN=$(az storage container generate-sas --name "downloads" --permissions r --expiry '2024-12-31T23:59Z' --https-only --account-name $STORAGE_ACCOUNT_NAME --account-key $STORAGE_ACCOUNT_KEY1 --output tsv)
+DOWNLOADS_SAS_TOKEN=$(az storage container generate-sas --name "downloads" --permissions r --expiry '2025-05-31T23:59Z' --https-only --account-name $STORAGE_ACCOUNT_NAME --account-key $STORAGE_ACCOUNT_KEY1 --output tsv)
 
 # Generate the SAS URL for the downloads container
 DOWNLOADS_SAS_URL="https://$STORAGE_ACCOUNT_NAME.blob.core.windows.net/downloads?$DOWNLOADS_SAS_TOKEN"
@@ -91,3 +93,15 @@ echo "AI Search Endpoint"
 echo "AZURE_SEARCH_ENDPOINT=${AI_SEARCH_ENDPOINT}" >> .env
 echo "AI Search Admin Key"
 echo "AZURE_SEARCH_ADMIN_KEY=${AI_SEARCH_ADMIN_KEY}" >> .env
+
+# Get and save Cosmos DB resource ID
+COSMOSDB_RESOURCE_ID=$(az cosmosdb show --name $COSMOSDB_ACCOUNT_NAME --resource-group $RESOURCE_GROUP_NAME --query id --output tsv)
+echo "COSMOSDB_RESOURCE_ID=${COSMOSDB_RESOURCE_ID}" >> .env
+
+# Get and save Storage Account resource ID
+STORAGE_RESOURCE_ID=$(az storage account show --name $STORAGE_ACCOUNT_NAME --resource-group $RESOURCE_GROUP_NAME --query id --output tsv)
+echo "STORAGE_RESOURCE_ID=${STORAGE_RESOURCE_ID}" >> .env
+
+# Build images
+
+docker compose build

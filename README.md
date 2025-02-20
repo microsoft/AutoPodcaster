@@ -37,76 +37,75 @@ Currently, there are some limitations to AutoPodcaster:
 
 Before you begin, ensure you have the following tools and services installed:
 
-- [Python 3.11+](https://www.python.org/downloads/)
-- [Node.js](https://nodejs.org/en/download/)
+- [WSL](https://docs.microsoft.com/en-us/windows/wsl/install)
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
-- [FastAPI](https://fastapi.tiangolo.com/)
 - [Docker](https://www.docker.com/products/docker-desktop)
+- [Azure OpenAI Resource](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/create-resource?pivots=web-portal) with the following deployed models:
+  - gpt-4o model
+  - text-embedding-ada-002 model
+- [Azure Speech Service Resource](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/overview)
 
-## Deploying required Azure resoures
+## Running AutoPodcaster locally
 
-1. Navigate to the `infra` directory:
+### Cloning the repository
+
+1. Open a remote connection to WSL using VS Code or your favorite IDE.
+
+![Screenshot of VS Code connecting remotely to WSL](./assets/vs_code_wsl.png)
+
+
+2. Clone the repository to your local machine:
 
     ```bash
-    cd infra
+    git clone https://github.com/microsoft/AutoPodcaster
+    ```
+
+### Setting Up Environment Variables
+
+```bash
+export AZURE_OPENAI_KEY=
+export AZURE_OPENAI_ENDPOINT=
+export AZURE_OPENAI_API_VERSION=
+export AZURE_OPENAI_DEPLOYMENT= # The deployment name of the gpt-4o model
+export AZURE_OPENAI_DEPLOYMENT_EMBEDDINGS= # The deployment name of the text-embedding-ada-002 model
+export AZURE_SPEECH_KEY=
+export AZURE_SPEECH_REGION=
+```
+
+### Deploying required Azure resoures
+
+1. Log in to Azure using the Azure CLI:
+
+    ```bash
+    az login
     ```
 
 2. Run the deployment script:
 
     ```bash
-    . deploy.sh
+    bash infra/deploy.sh
     ```
 
 This script sets up the necessary Azure resources, including the Service Bus, Cosmos DB, and storage account.
 
-## Setting Up Environment Variables
+![Deployed Azure Resources](./assets/deployed_azure_resources.png)
 
-Create a `.env` file in the root directory of the project and add the following environment variables for the notebooks:
+### Running the application
 
-```plaintext
-OPENAI_API_KEY=
-OPENAI_AZURE_ENDPOINT=
-OPENAI_AZURE_DEPLOYMENT=
-OPENAI_API_VERSION=
-OPENAI_AZURE_DEPLOYMENT_EMBEDDINGS=
-AZURE_SPEECH_KEY=
-AZURE_SPEECH_REGION=
-SERVICEBUS_CONNECTION_STRING=
-COSMOSDB_CONNECTION_STRING=
-STATUS_ENDPOINT=
-```
+1. To start the application, run the following command:
 
-Each microservice and each agent requires its own `.env`, check their `README.md` files.
+    ```bash
+    bash start.sh
+    ```
 
-## Running AutoPodcaster Locally
+2. Open your browser and navigate to `http://localhost:5173` to access the AutoPodcaster UI.
 
-To run AutoPodcaster locally, you need to start the following components:
-- Microservices (Indexer, Subject Space, Output API)
-- UI
-- Indexer Agents
-- Output Generator Agents
+3. To stop the application, you can use CTRL+C or run the following command:
 
-### Start the microservices
+    ```bash
+    docker compose down
+    ```
 
-1. [Start the Indexer API](src/indexer/README.md): The indexer is an API to create a indexer job based on the inputs. It contains also the API for the management of the status. This is the API to manage the `knowledge space`.
-2. [Subject Space API](src/subject_space/README.md): The Subject_space is an API to manage subject spaces. A subject space is a curated collection of documents related to a specific subject, i.e. a collection of document ids.
-3. [Output API](src/output/README.md): The Output API is an API to generate an output for a subject space. It contains the API to manage the output generation and trigger output generator agents by sending messages to the service bus.
-
-### Start the UI
-
-* [Start the UI](ui/README.md): The UI allows users to interact with AutoPodcaster, submit content/documents, create subjects, and request outputs.
-
-### Start the Indexer Agents
-
-* [Image Indexer](src/image_indexer/README.md): The image indexer is an agent to process images.
-* [Note Indexer](src/note_indexer/README.md): The note indexer is an agent to process notes, i.e. plain text.
-* [PDF Indexer](src/pdf_indexer/README.md): The PDF indexer is an agent to process PDF files.
-* [Visio Indexer](src/visio_indexer/README.md): The visio indexer is an agent to process visio files (experimental).
-* [Website Indexer](src/website_indexer/README.md): The website indexer is an agent to process websites.
-
-### Start the Output Generator Agents
-
-* [Podcast Generator](src/podcast_generator/README.md): The podcast generator is an agent to generate podcasts.
 
 ## Architecture
 

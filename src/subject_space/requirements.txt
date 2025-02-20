@@ -1,5 +1,5 @@
 azure-servicebus==7.12.2
-fastapi==0.112.0
+fastapi[standard]==0.112.0
 python-dotenv==1.0.1
 azure-cosmos==4.7.0
 langchain_core==0.2.29
