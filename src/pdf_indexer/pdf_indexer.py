@@ -86,6 +86,7 @@ def index_pdf(file_location: str):
     input.title = title
     input.date = ''
     input.last_updated = ''
+    input.status = ''
     input.author = ''
     input.description = description
     input.source = url

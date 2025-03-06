@@ -1,3 +1,3 @@
 # __init__.py
 
-from .input import Input
+from .Input import Input
