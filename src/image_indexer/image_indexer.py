@@ -1,12 +1,10 @@
 import os
 import json
-import uuid
 import requests
 import asyncio
 from dotenv import load_dotenv
 from azure.servicebus.aio import ServiceBusClient
 from azure.storage.blob import BlobServiceClient
-from azure.cosmos import CosmosClient
 from openai import AzureOpenAI
 from langchain_core.documents.base import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -16,12 +14,9 @@ import tiktoken
 import re
 import base64
 
-from autopodcaster_model import Input
-
 load_dotenv(override=True)
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
-cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
 status_endpoint = os.getenv("STATUS_ENDPOINT")
 blob_service_client = BlobServiceClient.from_connection_string(
     os.getenv("STORAGE_CONNECTION_STRING"))
@@ -39,28 +34,47 @@ async def main():
                 for message in received_messages:
                     image_input = json.loads(str(message))
                     image_location = image_input['file_name']
-                    update_status(image_input['request_id'], "Indexing")
+                    request_id = image_input['request_id']
+                    
+                    # Update status to "Indexing" through API
+                    update_status(request_id, "Indexing")
                     await receiver.complete_message(message)
-                    input = await index_image(image_location)
-                    update_status(image_input['request_id'], "Indexed")
-                    save_to_cosmosdb(input)
-                    update_status(image_input['request_id'], "Saved")
+                    
+                    # Process the image and get content/metadata
+                    processed_content = await index_image(image_location)
+                    
+                    # Send the processed content to api_input to update the record
+                    send_content_to_api(request_id, processed_content)
+                    
+                    # Update status to "Indexed" through API
+                    update_status(request_id, "Indexed")
     asyncio.sleep(5)
 
 
-def save_to_cosmosdb(input: Input):
-    client = CosmosClient.from_connection_string(cosmosdb_connection_string)
-    database_name = "autopodcaster"
-    database = client.get_database_client(database_name)
-    container_name = "inputs"
-    container = database.get_container_client(container_name)
-    container.create_item(body=input.to_dict())
-
-
 def update_status(request_id: str, status: str):
-    status = {"status": status}
-    requests.post(
-        f"{status_endpoint}/status/{request_id}", json=status)
+    """Update the status of a document through the API"""
+    status_data = {"status": status}
+    try:
+        response = requests.post(
+            f"{status_endpoint}/status/{request_id}", json=status_data)
+        response.raise_for_status()
+        print(f"Successfully updated status to '{status}' for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error updating status for request {request_id}: {e}")
+
+
+def send_content_to_api(request_id: str, processed_content: dict):
+    """Send the processed content to api_input to update the record"""
+    try:
+        # Use the content update endpoint with a simple dictionary
+        response = requests.post(
+            f"{status_endpoint}/inputs/{request_id}/content", 
+            json=processed_content
+        )
+        response.raise_for_status()
+        print(f"Successfully sent processed content to API for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending content to API for request {request_id}: {e}")
 
 
 def encode_image(image_path):
@@ -68,8 +82,8 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-async def index_image(image_location: str) -> Input:
-
+async def index_image(image_location: str) -> dict:
+    """Process image and return a dictionary with content and metadata"""
     blob_client = blob_service_client.get_blob_client(
         container=container_name, blob=image_location)
     download_file_path = get_file(image_location)
@@ -77,9 +91,6 @@ async def index_image(image_location: str) -> Input:
         download_file.write(blob_client.download_blob().readall())
 
     base64_image = encode_image(download_file_path)
-
-    # We will generate a title and a description from the content.
-    # using OpenAI GPT-4.
 
     # Create the prompt to generate the title and description.
     prompt_template = """Get the content from the image and generate a title, short description (4 sentences) and full text for the content.
@@ -139,22 +150,8 @@ async def index_image(image_location: str) -> Input:
     # Create a document from the content.
     documents = [Document(page_content="", metadata={})]
 
-    input = Input()
-    input.id = str(uuid.uuid4())
-    input.title = title
-    input.date = ''
-    input.last_updated = ''
-    input.status = ''
-    input.author = ''
-    input.description = description
-    input.source = ''
-    input.type = 'note'
-    input.thumbnail_url = ''
-    input.topics = []
-    input.entities = []
-
+    # Setup document metadata for Azure Search
     for document in documents:
-        document.metadata['input_id'] = input.id
         document.metadata['title'] = title
         document.metadata['source'] = ''
         document.metadata['description'] = description
@@ -188,11 +185,16 @@ async def index_image(image_location: str) -> Input:
     )
     vector_store.add_documents(documents=splits)
 
-    input.content = '\n\n'.join([doc.page_content for doc in documents])
+    content = '\n\n'.join([doc.page_content for doc in documents])
 
     os.remove(download_file_path)
 
-    return input
+    # Return the processed content and metadata
+    return {
+        'content': content,
+        'title': title,
+        'description': description
+    }
 
 
 def get_file(file_name: str):
