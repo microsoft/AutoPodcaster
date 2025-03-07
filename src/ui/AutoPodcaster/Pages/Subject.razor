@@ -1,18 +1,78 @@
 ﻿@page "/subject"
+@inject ISubjectSpaceService SubjectSpaceService
 
-<PageTitle>Subject</PageTitle>
+<PageTitle>Subject Space</PageTitle>
 
-<h1>Counter</h1>
+<FluentToolbar id="toolbar-fluent-components-two"style="width:100%; margin-bottom: 2rem; background: none; border-bottom: 1px solid #1a1a1a;">
+    <label slot="label" style="font-weight: 400;">Subject Space</label>
+    @if (subjectSpaceCount != null)
+    {
+        <FluentBadge>@subjectSpaceCount items</FluentBadge>
+    }
+    <FluentSpacer />
+    <FluentTextField @bind-Value=subjectToAdd Placeholder="Subject" Disabled=@(IsDisabled()) ></FluentTextField>
+    <FluentButton
+        IconEnd="@(new Icons.Regular.Size16.Add())"
+        Title="Add"
+        Disabled=@(IsDisabled())
+        @onclick="CreateSubjectSpaceAsync" />
+</FluentToolbar>
 
-<p role="status">Current count: <FluentBadge Appearance="Appearance.Neutral">@currentCount</FluentBadge></p>
-
-<FluentButton Appearance="Appearance.Accent" @onclick="IncrementCount">Click me</FluentButton>
+@if (subjectSpaces == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (inProgress) {
+    <FluentProgressRing></FluentProgressRing>
+}
+else
+{
+    
+    <FluentDataGrid Id="subjectGrid"
+                Items="@subjectSpaces"
+                GridTemplateColumns="2fr 1fr 1fr 1fr"
+                TGridItem=SubjectSpace
+                ItemKey="@(k => k!.Id)"
+                ResizableColumns="true"
+                ShowHover="true"
+                AutoFit="true">
+        <PropertyColumn Title="Subject" Property="@(k => k!.Subject)" Sortable="true" Align="Align.Start" />
+        <PropertyColumn Title="Created At" Property="@(k => k!.Date)" Sortable="true" Align="Align.Start" IsDefaultSortColumn="true" InitialSortDirection="SortDirection.Descending" />
+    </FluentDataGrid>
+}
 
 @code {
-    private int currentCount = 0;
+    private IQueryable<SubjectSpace>? subjectSpaces;
+    private int? subjectSpaceCount;
+    private string? subjectToAdd;
+    private Boolean inProgress = false;
 
-    private void IncrementCount()
+    protected override async Task OnInitializedAsync()
     {
-        currentCount++;
+        await FetchSubjectSpacesAsync();
+    }
+
+    private async Task FetchSubjectSpacesAsync()
+    {
+        subjectSpaces = null;
+        subjectSpaceCount = null;
+        subjectSpaces = await SubjectSpaceService.GetSubjectSpacesAsync();
+        subjectSpaceCount = subjectSpaces.Count();
+    }
+
+    private async Task CreateSubjectSpaceAsync() {
+        if (string.IsNullOrWhiteSpace(subjectToAdd))
+        {
+            return;
+        }
+        inProgress = true;
+        await SubjectSpaceService.CreateSubjectSpaceAsync(subjectToAdd);
+        subjectToAdd = null;
+        inProgress = false;
+        await FetchSubjectSpacesAsync();
+    }
+
+    private bool IsDisabled() {
+        return inProgress || subjectSpaces == null;
     }
 }
