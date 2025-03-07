@@ -1,11 +1,9 @@
 import os
 import json
-import uuid
 import requests
 import asyncio
 from dotenv import load_dotenv
 from azure.servicebus.aio import ServiceBusClient
-from azure.cosmos import CosmosClient
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.azuresearch import AzureSearch
@@ -15,40 +13,7 @@ from bs4 import BeautifulSoup
 load_dotenv()
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
-cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
 status_endpoint = os.getenv("STATUS_ENDPOINT")
-
-
-class Input:
-    id: str
-    title: str
-    date: str
-    last_updated: str
-    author: str
-    description: str
-    source: str
-    type: str
-    thumbnail_url: str
-    topics: list
-    entities: list
-    content: str
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "date": self.date,
-            "last_updated": self.last_updated,
-            "author": self.author,
-            "description": self.description,
-            "source": self.source,
-            "type": self.type,
-            "thumbnail_url": self.thumbnail_url,
-            "topics": self.topics,
-            "entities": self.entities,
-            "content": self.content
-        }
-
 
 async def main():
     async with ServiceBusClient.from_connection_string(
@@ -61,32 +26,51 @@ async def main():
                 for message in received_messages:
                     website_input = json.loads(str(message))
                     website_url = website_input['input']
-                    update_status(website_input['request_id'], "Indexing")
+                    request_id = website_input['request_id']
+                    
+                    # Update status to "Indexing" through API
+                    update_status(request_id, "Indexing")
                     await receiver.complete_message(message)
-                    input = await index_website(website_url)
-                    update_status(website_input['request_id'], "Indexed")
-                    save_to_cosmosdb(input)
-                    update_status(website_input['request_id'], "Saved")
+                    
+                    # Process the website and get content/metadata
+                    processed_content = await index_website(website_url)
+                    
+                    # Send the processed content to api_input to update the record
+                    send_content_to_api(request_id, processed_content)
+                    
+                    # Update status to "Indexed" through API
+                    update_status(request_id, "Indexed")
     asyncio.sleep(5)
 
 
-def save_to_cosmosdb(input: Input):
-    client = CosmosClient.from_connection_string(cosmosdb_connection_string)
-    database_name = "autopodcaster"
-    database = client.get_database_client(database_name)
-    container_name = "inputs"
-    container = database.get_container_client(container_name)
-    container.create_item(body=input.to_dict())
-
-
 def update_status(request_id: str, status: str):
-    status = {"status": status}
-    requests.post(
-        f"{status_endpoint}/status/{request_id}", json=status)
+    """Update the status of a document through the API"""
+    status_data = {"status": status}
+    try:
+        response = requests.post(
+            f"{status_endpoint}/status/{request_id}", json=status_data)
+        response.raise_for_status()
+        print(f"Successfully updated status to '{status}' for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error updating status for request {request_id}: {e}")
 
 
-async def index_website(website_url: str) -> Input:
+def send_content_to_api(request_id: str, processed_content: dict):
+    """Send the processed content to api_input to update the record"""
+    try:
+        # Use the content update endpoint with a simple dictionary
+        response = requests.post(
+            f"{status_endpoint}/inputs/{request_id}/content", 
+            json=processed_content
+        )
+        response.raise_for_status()
+        print(f"Successfully sent processed content to API for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending content to API for request {request_id}: {e}")
 
+
+async def index_website(website_url: str) -> dict:
+    """Process website and return a dictionary with content and metadata"""
     loader = AsyncHtmlLoader(website_url)
     documents = loader.load()
 
@@ -95,46 +79,43 @@ async def index_website(website_url: str) -> Input:
     # Parse the title and description from the HTML
     soup = BeautifulSoup(content, 'html.parser')
     title = soup.title.string if soup.title else 'Unknown Title'
-    description = soup.description.string if soup.description else ''
-
-    input = Input()
-    input.id = str(uuid.uuid4())
-    input.title = title
-    input.date = ''
-    input.last_updated = ''
-    input.author = ''
-    input.description = description
-    input.source = website_url
-    input.type = 'website'
-    input.thumbnail_url = ''
-    input.topics = []
-    input.entities = []
+    
+    # Try to get description from meta tags
+    description = ''
+    meta_desc = soup.find('meta', attrs={'name': 'description'})
+    if meta_desc and meta_desc.get('content'):
+        description = meta_desc.get('content')
+    else:
+        # Fallback to og:description
+        og_desc = soup.find('meta', attrs={'property': 'og:description'})
+        if og_desc and og_desc.get('content'):
+            description = og_desc.get('content')
 
     for document in documents:
-        document.metadata['id'] = input.id
         document.metadata['title'] = title
         document.metadata['source'] = website_url
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
         document.metadata['type'] = 'website'
 
-        # We will extract the correct information from the html tags.
+        # Extract the content from HTML tags
         page_content = document.page_content
-
         new_content = ""
-        # Extract headings
+        
+        # Parse with BeautifulSoup
         soup = BeautifulSoup(page_content, 'html.parser')
-        h1 = [h1.get_text(strip=True) for h1 in soup.find_all('h1')]
-        new_content += '\n\n'.join(h1)
-        h2 = [h2.get_text(strip=True) for h2 in soup.find_all('h2')]
-        new_content += '\n\n'.join(h2)
-        h3 = [h3.get_text(strip=True) for h3 in soup.find_all('h3')]
-        new_content += '\n\n'.join(h3)
+        
+        # Extract headings
+        headings = []
+        for tag in ['h1', 'h2', 'h3']:
+            headings.extend([h.get_text(strip=True) for h in soup.find_all(tag)])
+        if headings:
+            new_content += '\n\n'.join(headings) + '\n\n'
 
         # Extract paragraphs
-        soup = BeautifulSoup(page_content, 'html.parser')
         paragraphs = [p.get_text(strip=True) for p in soup.find_all('p')]
-        new_content += '\n\n'.join(paragraphs)
+        if paragraphs:
+            new_content += '\n\n'.join(paragraphs)
 
         document.page_content = new_content
 
@@ -163,9 +144,15 @@ async def index_website(website_url: str) -> Input:
     )
     vector_store.add_documents(documents=splits)
 
-    input.content = '\n\n'.join([doc.page_content for doc in documents])
+    extracted_content = '\n\n'.join([doc.page_content for doc in documents])
 
-    return input
+    # Return the processed content and metadata
+    return {
+        'content': extracted_content,
+        'title': title,
+        'description': description
+    }
+
 
 while (True):
     asyncio.run(main())

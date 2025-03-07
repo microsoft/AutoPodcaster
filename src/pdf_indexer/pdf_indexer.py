@@ -16,7 +16,6 @@ import time
 load_dotenv(override=True)
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
-cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
 status_endpoint = os.getenv("STATUS_ENDPOINT")
 blob_service_client = BlobServiceClient.from_connection_string(
     os.getenv("STORAGE_CONNECTION_STRING"))
