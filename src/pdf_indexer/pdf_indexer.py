@@ -1,6 +1,5 @@
 import os
 import json
-import uuid
 import requests
 import asyncio
 from dotenv import load_dotenv
@@ -13,8 +12,6 @@ from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_community.document_loaders import PyPDFLoader
 import tiktoken
 import time
-
-from autopodcaster_model import Input
 
 load_dotenv(override=True)
 
@@ -38,27 +35,46 @@ async def main():
                     print(str(message))
                     pdf_input = json.loads(str(message))
                     file_location = pdf_input['file_name']
-                    update_status(pdf_input['request_id'], "Indexing")
+                    request_id = pdf_input['request_id']
+                    
+                    # Update status to "Indexing" through API
+                    update_status(request_id, "Indexing")
                     await receiver.complete_message(message)
-                    input = index_pdf(file_location)
-                    update_status(pdf_input['request_id'], "Indexed")
-                    save_to_cosmosdb(input)
-                    update_status(pdf_input['request_id'], "Saved")
-
-
-def save_to_cosmosdb(input: Input):
-    client = CosmosClient.from_connection_string(cosmosdb_connection_string)
-    database_name = "autopodcaster"
-    database = client.get_database_client(database_name)
-    container_name = "inputs"
-    container = database.get_container_client(container_name)
-    container.create_item(body=input.to_dict())
+                    
+                    # Process the PDF and get content/metadata
+                    processed_content = index_pdf(file_location, request_id)
+                    
+                    # Send the processed content to api_input to update the record
+                    send_content_to_api(request_id, processed_content)
+                    
+                    # Update status to "Indexed" through API
+                    update_status(request_id, "Indexed")
 
 
 def update_status(request_id: str, status: str):
-    status = {"status": status}
-    requests.post(
-        f"{status_endpoint}/status/{request_id}", json=status)
+    """Update the status of a document through the API"""
+    status_data = {"status": status}
+    try:
+        response = requests.post(
+            f"{status_endpoint}/status/{request_id}", json=status_data)
+        response.raise_for_status()
+        print(f"Successfully updated status to '{status}' for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error updating status for request {request_id}: {e}")
+
+
+def send_content_to_api(request_id: str, processed_content: dict):
+    """Send the processed content to api_input to update the record"""
+    try:
+        # Use the content update endpoint with a simple dictionary
+        response = requests.post(
+            f"{status_endpoint}/inputs/{request_id}/content", 
+            json=processed_content
+        )
+        response.raise_for_status()
+        print(f"Successfully sent processed content to API for request {request_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending content to API for request {request_id}: {e}")
 
 
 def num_tokens_from_string(string: str, encoding_name: str) -> int:
@@ -67,7 +83,8 @@ def num_tokens_from_string(string: str, encoding_name: str) -> int:
     return num_tokens
 
 
-def index_pdf(file_location: str):
+def index_pdf(file_location: str, request_id: str):
+    """Process PDF and return a dictionary with content and metadata"""
     blob_client = blob_service_client.get_blob_client(
         container=container_name, blob=file_location)
     download_file_path = get_file(file_location)
@@ -81,25 +98,9 @@ def index_pdf(file_location: str):
     description = documents[0].metadata.get('description', '')
     url = file_location
 
-    input = Input()
-    input.id = str(uuid.uuid4())
-    input.title = title
-    input.date = ''
-    input.last_updated = ''
-    input.status = ''
-    input.author = ''
-    input.description = description
-    input.source = url
-    input.type = 'pdf'
-    input.thumbnail_url = ''
-    input.topics = []
-    input.entities = []
-
+    # Prepare the document metadata for Azure Search
     for document in documents:
-        # For Azure Search each document needs a different id
-        # and each chunk too => do not set the id here or
-        # only 1 input or chunk of the input will be indexed
-        document.metadata['input_id'] = input.id
+        document.metadata['input_id'] = request_id
         document.metadata['title'] = title
         document.metadata['source'] = url
         document.metadata['description'] = description
@@ -131,6 +132,7 @@ def index_pdf(file_location: str):
         embedding_function=azure_openai_embeddings.embed_query,
         additional_search_client_options={"retry_total": 20},
     )
+    
     # Add documents by batch of 500 as there is a limit of 1000 documents per request
     # and 16MB per request
     num_splits = len(splits)
@@ -142,11 +144,16 @@ def index_pdf(file_location: str):
         vector_store.add_documents(documents=splits_batch)
         time.sleep(30)
 
-    input.content = '\n\n'.join([doc.page_content for doc in documents])
+    content = '\n\n'.join([doc.page_content for doc in documents])
 
     os.remove(download_file_path)
 
-    return input
+    # Return the processed content and metadata
+    return {
+        'content': content,
+        'title': title,
+        'description': description
+    }
 
 
 def get_file(file_name: str):
