@@ -6,5 +6,5 @@ then
     source setup.sh
 fi
 
-# Run the API
-fastapi run api_input.py --port 8081
+# Run the image indexer
+python image_indexer.py

@@ -124,7 +124,7 @@ async def index_note(content: str) -> Input:
         document.metadata['source'] = ''
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
-        document.metadata['page'] = 0
+        document.metadata['page'] = -1
         document.metadata['type'] = 'note'
 
     text_splitter = RecursiveCharacterTextSplitter(

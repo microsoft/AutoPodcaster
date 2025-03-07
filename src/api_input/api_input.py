@@ -208,6 +208,13 @@ async def upload_file(file: UploadFile = File(...)):
     elif (file.filename.lower().endswith(".docx")):
         queue = 'word'
         input.type = "Word"
+    elif (file.filename.lower().endswith(".png") or
+          file.filename.lower().endswith(".jpg") or
+          file.filename.lower().endswith(".jpeg") or
+          file.filename.lower().endswith(".gif") or
+          file.filename.lower().endswith(".bmp")):
+        queue = 'image'
+        input.type = "Image"
     else:
         logger.error(f"Unsupported file type.")
         raise HTTPException(status_code=400, detail="Unsupported file type")
