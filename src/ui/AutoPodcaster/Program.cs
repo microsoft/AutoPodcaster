@@ -14,6 +14,10 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddScoped<IInputService, InputService>();
 builder.Services.AddKeyedScoped("InputBackend", (sp, key) => new HttpClient { BaseAddress = new Uri(builder.Configuration["InputBackendUrl"] ?? "http://localhost:8081") });
 
+// Subject Space Service
+builder.Services.AddScoped<ISubjectSpaceService, SubjectSpaceService>();
+builder.Services.AddKeyedScoped("SubjectSpaceBackend", (sp, key) => new HttpClient { BaseAddress = new Uri(builder.Configuration["SubjectSpaceBackendUrl"] ?? "http://localhost:8082") });
+
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddFluentUIComponents();
 

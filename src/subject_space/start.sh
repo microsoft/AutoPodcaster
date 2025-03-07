@@ -1,1 +1,0 @@
-fastapi run subject_space.py --port 8082
