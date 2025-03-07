@@ -1,0 +1,60 @@
+﻿@page "/knowledge"
+@inject IInputService InputService
+
+<PageTitle>Knowledge Space</PageTitle>
+
+<FluentToolbar id="toolbar-fluent-components-two"style="width:100%; margin-bottom: 2rem; background: none; border-bottom: 1px solid #1a1a1a;">
+    <label slot="label" style="font-weight: 400;">Knowledge Space</label>
+    @if (inputCount != null)
+    {
+        <FluentBadge>@inputCount items</FluentBadge>
+    }
+    <FluentSpacer />
+    <FluentButton
+        IconEnd="@(new Icons.Regular.Size16.ArrowClockwise())"
+        Title="Refresh"
+        @onclick="FetchInputsAsync" />
+</FluentToolbar>
+
+@if (inputs == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    
+    <FluentDataGrid Id="knowledgeGrid"
+                Items="@inputs"
+                GridTemplateColumns="2fr 1fr 1fr 1fr"
+                TGridItem=Input
+                ItemKey="@(k => k!.Id)"
+                ResizableColumns="true"
+                ShowHover="true"
+                AutoFit="true">
+        <PropertyColumn Title="Title" Property="@(k => k!.Title)" Sortable="true" Align="Align.Start" />
+        <PropertyColumn Title="Created At" Property="@(k => k!.Date)" Sortable="true" Align="Align.Start" IsDefaultSortColumn="true" InitialSortDirection="SortDirection.Descending" />
+        <PropertyColumn Title="Status" Property="@(k => k!.Status)" Sortable="true" Align="Align.Start" />
+        @* TODO Update to icon *@
+        <PropertyColumn Title="Type" Property="@(k => k!.Type)" Sortable="true" Align="Align.Start" />
+        @* TODO Update to a link *@
+        @* <PropertyColumn Title="Link" Property="@(k => k!.Uri)" Sortable="true" Align="Align.Start" /> *@
+    </FluentDataGrid>
+}
+
+@code {
+    private IQueryable<Input>? inputs;
+    private int? inputCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchInputsAsync();
+    }
+
+    private async Task FetchInputsAsync()
+    {
+        inputs = null;
+        inputCount = null;
+        inputs = await InputService.GetInputsAsync();
+        inputCount = inputs.Count();
+    }
+}

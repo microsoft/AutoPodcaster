@@ -1,0 +1,130 @@
+﻿@page "/"
+@inject IInputService InputService
+@inject Blazored.LocalStorage.ILocalStorageService localStorage
+@inject NavigationManager Navigation
+
+<PageTitle>Drop Knowledge</PageTitle>
+
+<FluentInputFile Id="my-file-uploader"
+                 Mode="InputFileMode.SaveToTemporaryFolder"
+                 Multiple="false"
+                 MaximumFileCount="1 "
+                 MaximumFileSize="@(10*1024*1024)"
+                 Accept="image/*, .pdf, .docx"
+                 @bind-ProgressPercent="@ProgressPercent"
+                 OnCompleted="@OnCompletedFileUploadAsync"
+                 Style="height: 200px; width: 90%;">
+    <ChildContent>
+        <label for="my-file-uploader">
+            <FluentIcon Value="@(new @Icons.Regular.Size24.ArrowUpload())" />
+        </label>
+
+        <div>
+            Drag a file here you wish to upload,
+            or <label for="my-file-uploader">browse</label>
+            for it<span style="color: red;">*</span>.
+            <br />
+            @* <em>Maximum of 4 files allowed.</em> *@
+        </div>
+
+        <div>
+            <br />
+            Supported file types: <code>image/*, .pdf, .docx</code>
+        </div>
+    </ChildContent>
+</FluentInputFile>
+
+@if (Files.Any())
+{
+    <h4>File(s) uploaded:</h4>
+    <ul>
+        @foreach (var file in Files)
+        {
+            <li>
+                <b>@file.Name</b> 🔹
+                @($"{Decimal.Divide(file.Size, 1024):N} KB") 🔹
+                @file.ContentType 🔹
+                @file.LocalFile?.FullName
+                @file.ErrorMessage
+            </li>
+        }
+    </ul>
+}
+
+<FluentStack Orientation="Orientation.Vertical" style="margin-top: 1rem;">
+    <FluentTextArea
+            Value="@InputString"
+            Placeholder="Drop some knowledge or links here..."
+            ValueChanged="@SaveInputStringToLocaLocalStorage"
+            Resize="TextAreaResize.Vertical"
+            Rows="10"
+            style="width: 90%;">
+    </FluentTextArea>
+    <FluentButton OnClick="SendInputString">Send</FluentButton>
+</FluentStack>
+
+@code {
+    private string? InputString;
+    private int ProgressPercent  = 0;
+    private FluentInputFileEventArgs[] Files = Array.Empty<FluentInputFileEventArgs>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadInputStringFromLocalStorage();
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                              String Drop Zone                              */
+    /* -------------------------------------------------------------------------- */
+
+    private async Task SaveInputStringToLocaLocalStorage(string _inputString)
+    {
+        await localStorage.SetItemAsync("inputString", _inputString);
+        InputString = _inputString;
+    }
+
+    private async Task LoadInputStringFromLocalStorage()
+    {
+        InputString = await localStorage.GetItemAsync<string>("inputString");
+    }
+
+    private async Task ClearInputString() 
+    {
+        await localStorage.RemoveItemAsync("inputString");
+        InputString = null;
+    }
+
+    private async Task SendInputString()
+    {
+        if (string.IsNullOrWhiteSpace(InputString))
+        {
+            return;
+        }
+        string _inputString = InputString;
+        await ClearInputString();
+        await InputService.IndexInputAsync(_inputString);
+        Navigation.NavigateTo("/knowledge");
+    }
+
+    /* -------------------------------------------------------------------------- */
+    /*                               File Drop Zone                               */
+    /* -------------------------------------------------------------------------- */
+
+    private async Task OnCompletedFileUploadAsync(IEnumerable<FluentInputFileEventArgs> files)
+    {
+        Files = files.ToArray();
+        // For the demo, delete these files.
+        foreach (var file in Files)
+        {
+            if (file.LocalFile != null)
+            {
+                await InputService.IndexFileInputAsync(file.Name, file.LocalFile, file.ContentType);
+                file.LocalFile.Delete();
+            }
+        }
+
+        // Wait 3 seconds before to reset the progress bar.
+        await Task.Delay(3000);
+        ProgressPercent = 0;
+    }
+}

@@ -12,6 +12,9 @@ from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_community.document_loaders import PyPDFLoader
 import tiktoken
+import time
+
+from autopodcaster_model import Input
 
 load_dotenv(override=True)
 
@@ -21,37 +24,6 @@ status_endpoint = os.getenv("STATUS_ENDPOINT")
 blob_service_client = BlobServiceClient.from_connection_string(
     os.getenv("STORAGE_CONNECTION_STRING"))
 container_name = "uploads"
-
-
-class Input:
-    id: str
-    title: str
-    date: str
-    last_updated: str
-    author: str
-    description: str
-    source: str
-    type: str
-    thumbnail_url: str
-    topics: list
-    entities: list
-    content: str
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "date": self.date,
-            "last_updated": self.last_updated,
-            "author": self.author,
-            "description": self.description,
-            "source": self.source,
-            "type": self.type,
-            "thumbnail_url": self.thumbnail_url,
-            "topics": self.topics,
-            "entities": self.entities,
-            "content": self.content
-        }
 
 
 async def main():
@@ -114,6 +86,7 @@ def index_pdf(file_location: str):
     input.title = title
     input.date = ''
     input.last_updated = ''
+    input.status = ''
     input.author = ''
     input.description = description
     input.source = url
@@ -123,11 +96,15 @@ def index_pdf(file_location: str):
     input.entities = []
 
     for document in documents:
-        document.metadata['id'] = input.id
+        # For Azure Search each document needs a different id
+        # and each chunk too => do not set the id here or
+        # only 1 input or chunk of the input will be indexed
+        document.metadata['input_id'] = input.id
         document.metadata['title'] = title
         document.metadata['source'] = url
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
+        # page metadata is added by PyPDFLoader
         document.metadata['type'] = 'pdf'
 
     text_splitter = RecursiveCharacterTextSplitter(
@@ -152,8 +129,18 @@ def index_pdf(file_location: str):
         azure_search_key=os.getenv("AZURE_SEARCH_ADMIN_KEY"),
         index_name=index_name,
         embedding_function=azure_openai_embeddings.embed_query,
+        additional_search_client_options={"retry_total": 20},
     )
-    vector_store.add_documents(documents=splits)
+    # Add documents by batch of 500 as there is a limit of 1000 documents per request
+    # and 16MB per request
+    num_splits = len(splits)
+    batch_size = 500
+    for i in range(0, num_splits, batch_size):
+        splits_batch = splits[i:i+batch_size]
+        print(
+            f"Adding batch {i} to {i+batch_size} of {num_splits} with {len(splits_batch)} documents")
+        vector_store.add_documents(documents=splits_batch)
+        time.sleep(30)
 
     input.content = '\n\n'.join([doc.page_content for doc in documents])
 

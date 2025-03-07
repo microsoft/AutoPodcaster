@@ -1,0 +1,27 @@
+
+<div class="navmenu" style="height: 100%; border-right: 1px solid #242424;">
+    <nav class="sitenav" aria-labelledby="main-menu" style="overflow: auto; resize: none; height: calc(100dvh - 87px);">
+        <FluentAppBar Orientation="@(Orientation.Vertical)" Style="@(" background-color: var(--neutral-layer-2); height: 100%;")" PopoverShowSearch="@_showSearch">
+            <FluentAppBarItem Href="/"
+                Match="NavLinkMatch.All"
+                IconRest="@(new Icons.Regular.Size24.CloudArrowUp())"
+                IconActive="@(new Icons.Filled.Size24.CloudArrowUp())"
+                Text="Drop" />
+            <FluentAppBarItem Href="knowledge"
+                Match="NavLinkMatch.All"
+                IconRest="@(new Icons.Regular.Size24.Library())"
+                IconActive="@(new Icons.Filled.Size24.Library())"
+                Text="Knowledge" />
+            <FluentAppBarItem Href="subject"
+                Match="NavLinkMatch.All"
+                IconRest="@(new Icons.Regular.Size24.Tag())"
+                IconActive="@(new Icons.Filled.Size24.Tag())"
+                Text="Subject" />         
+        </FluentAppBar>
+    </nav>
+</div>
+
+@code {
+    private bool _showSearch = true;
+}
+@* Pass to horizontal is screen is less than 600 *@

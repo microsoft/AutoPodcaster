@@ -31,10 +31,10 @@ subject_space_endpoint = os.getenv("SUBJECT_SPACE_ENDPOINT")
 
 # Define the embeddings model
 azure_openai_embeddings = AzureOpenAIEmbeddings(
-        api_key=os.environ['AZURE_OPENAI_KEY'],
-        azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT'],
-        api_version=os.environ['AZURE_OPENAI_API_VERSION'],
-        azure_deployment=os.environ['AZURE_OPENAI_DEPLOYMENT_EMBEDDINGS']
+    api_key=os.environ['AZURE_OPENAI_KEY'],
+    azure_endpoint=os.environ['AZURE_OPENAI_ENDPOINT'],
+    api_version=os.environ['AZURE_OPENAI_API_VERSION'],
+    azure_deployment=os.environ['AZURE_OPENAI_DEPLOYMENT_EMBEDDINGS']
 )
 
 
@@ -119,8 +119,7 @@ def process_podcast(subject_id: str) -> Output:
         "You are an assistant for question-answering tasks. "
         "Use the following pieces of retrieved context to answer "
         "the question. If you don't know the answer, say that you "
-        "don't know. Use three sentences maximum and keep the "
-        "answer concise."
+        "don't know."
         "\n\n"
         "{context}"
     )
@@ -271,7 +270,7 @@ def generate_podcast_audio(id, ssml_script):
     service_region = os.getenv("AZURE_SPEECH_REGION")
 
     retry = 1
-   
+
     while retry <= 3:
         speech_config = speechsdk.SpeechConfig(
             subscription=speech_key, region=service_region)
@@ -286,12 +285,13 @@ def generate_podcast_audio(id, ssml_script):
         stream.save_to_wav_file(get_file(podcast_filename))
 
         print(stream.status)
-        
+
         blob_url_with_sas = write_to_blob(podcast_filename)
         return blob_url_with_sas
 
         retry += 1
     return ""
+
 
 def write_to_blob(file_name: str):
     blob_client = blob_service_client.get_blob_client(

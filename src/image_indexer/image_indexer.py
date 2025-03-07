@@ -16,6 +16,8 @@ import tiktoken
 import re
 import base64
 
+from autopodcaster_model import Input
+
 load_dotenv(override=True)
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
@@ -24,39 +26,6 @@ status_endpoint = os.getenv("STATUS_ENDPOINT")
 blob_service_client = BlobServiceClient.from_connection_string(
     os.getenv("STORAGE_CONNECTION_STRING"))
 container_name = "uploads"
-
-print(f"service_bus_connection_string: {servicebus_connection_string}")
-
-
-class Input:
-    id: str
-    title: str
-    date: str
-    last_updated: str
-    author: str
-    description: str
-    source: str
-    type: str
-    thumbnail_url: str
-    topics: list
-    entities: list
-    content: str
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "date": self.date,
-            "last_updated": self.last_updated,
-            "author": self.author,
-            "description": self.description,
-            "source": self.source,
-            "type": self.type,
-            "thumbnail_url": self.thumbnail_url,
-            "topics": self.topics,
-            "entities": self.entities,
-            "content": self.content
-        }
 
 
 async def main():
@@ -69,13 +38,13 @@ async def main():
                     max_message_count=1, max_wait_time=5)
                 for message in received_messages:
                     image_input = json.loads(str(message))
-                    image_location = image_input['input']
+                    image_location = image_input['file_name']
                     update_status(image_input['request_id'], "Indexing")
+                    await receiver.complete_message(message)
                     input = await index_image(image_location)
                     update_status(image_input['request_id'], "Indexed")
                     save_to_cosmosdb(input)
                     update_status(image_input['request_id'], "Saved")
-                    await receiver.complete_message(message)
     asyncio.sleep(5)
 
 
@@ -121,8 +90,6 @@ async def index_image(image_location: str) -> Input:
     ((Full text goes here))
 
     """
-
-    print(f"azure openai key: {os.environ['AZURE_OPENAI_KEY']}")
 
     # Create the gpt-4o model client
     azure_openai_client = AzureOpenAI(
@@ -177,6 +144,7 @@ async def index_image(image_location: str) -> Input:
     input.title = title
     input.date = ''
     input.last_updated = ''
+    input.status = ''
     input.author = ''
     input.description = description
     input.source = ''
@@ -186,10 +154,12 @@ async def index_image(image_location: str) -> Input:
     input.entities = []
 
     for document in documents:
+        document.metadata['input_id'] = input.id
         document.metadata['title'] = title
         document.metadata['source'] = ''
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
+        document.metadata['page'] = -1
         document.metadata['type'] = 'note'
         document.page_content = full_text
 

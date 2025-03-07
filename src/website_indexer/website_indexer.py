@@ -12,42 +12,13 @@ from langchain_community.vectorstores.azuresearch import AzureSearch
 from langchain_community.document_loaders import AsyncHtmlLoader
 from bs4 import BeautifulSoup
 
+from autopodcaster_model import Input
+
 load_dotenv()
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
 cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
 status_endpoint = os.getenv("STATUS_ENDPOINT")
-
-
-class Input:
-    id: str
-    title: str
-    date: str
-    last_updated: str
-    author: str
-    description: str
-    source: str
-    type: str
-    thumbnail_url: str
-    topics: list
-    entities: list
-    content: str
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "date": self.date,
-            "last_updated": self.last_updated,
-            "author": self.author,
-            "description": self.description,
-            "source": self.source,
-            "type": self.type,
-            "thumbnail_url": self.thumbnail_url,
-            "topics": self.topics,
-            "entities": self.entities,
-            "content": self.content
-        }
 
 
 async def main():
@@ -102,6 +73,7 @@ async def index_website(website_url: str) -> Input:
     input.title = title
     input.date = ''
     input.last_updated = ''
+    input.status = ''
     input.author = ''
     input.description = description
     input.source = website_url
@@ -116,6 +88,7 @@ async def index_website(website_url: str) -> Input:
         document.metadata['source'] = website_url
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
+        document.metadata['page'] = -1
         document.metadata['type'] = 'website'
 
         # We will extract the correct information from the html tags.

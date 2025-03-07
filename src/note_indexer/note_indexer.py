@@ -13,42 +13,13 @@ from langchain_openai import AzureOpenAIEmbeddings
 from langchain_community.vectorstores.azuresearch import AzureSearch
 import re
 
+from autopodcaster_model import Input
+
 load_dotenv(override=True)
 
 servicebus_connection_string = os.getenv("SERVICEBUS_CONNECTION_STRING")
 cosmosdb_connection_string = os.getenv("COSMOSDB_CONNECTION_STRING")
 status_endpoint = os.getenv("STATUS_ENDPOINT")
-
-
-class Input:
-    id: str
-    title: str
-    date: str
-    last_updated: str
-    author: str
-    description: str
-    source: str
-    type: str
-    thumbnail_url: str
-    topics: list
-    entities: list
-    content: str
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "title": self.title,
-            "date": self.date,
-            "last_updated": self.last_updated,
-            "author": self.author,
-            "description": self.description,
-            "source": self.source,
-            "type": self.type,
-            "thumbnail_url": self.thumbnail_url,
-            "topics": self.topics,
-            "entities": self.entities,
-            "content": self.content
-        }
 
 
 async def main():
@@ -63,11 +34,11 @@ async def main():
                     website_input = json.loads(str(message))
                     content = website_input['input']
                     update_status(website_input['request_id'], "Indexing")
+                    await receiver.complete_message(message)
                     input = await index_note(content)
                     update_status(website_input['request_id'], "Indexed")
                     save_to_cosmosdb(input)
                     update_status(website_input['request_id'], "Saved")
-                    await receiver.complete_message(message)
     asyncio.sleep(5)
 
 
@@ -138,6 +109,7 @@ async def index_note(content: str) -> Input:
     input.title = title
     input.date = ''
     input.last_updated = ''
+    input.status = ''
     input.author = ''
     input.description = description
     input.source = ''
@@ -147,11 +119,12 @@ async def index_note(content: str) -> Input:
     input.entities = []
 
     for document in documents:
-        document.metadata['id'] = input.id
+        document.metadata['input_id'] = input.id
         document.metadata['title'] = title
         document.metadata['source'] = ''
         document.metadata['description'] = description
         document.metadata['thumbnail_url'] = ''
+        document.metadata['page'] = -1
         document.metadata['type'] = 'note'
 
     text_splitter = RecursiveCharacterTextSplitter(
@@ -185,3 +158,4 @@ async def index_note(content: str) -> Input:
 
 while (True):
     asyncio.run(main())
+    asyncio.sleep(5)

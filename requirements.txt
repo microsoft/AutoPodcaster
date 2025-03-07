@@ -1,5 +1,4 @@
 jupyter==1.0.0
-pytubefix==6.9.2
 moviepy==1.0.3
 langchain==0.2.12
 langchain-text-splitters==0.2.2

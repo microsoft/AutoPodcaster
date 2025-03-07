@@ -9,3 +9,6 @@ src/notebooks/OAI_CONFIG_LIST
 ui/.vite/
 **/.cache
 src/notebooks/coding
+build/
+dist/
+*.egg-info/

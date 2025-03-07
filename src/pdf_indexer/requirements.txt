@@ -3,8 +3,11 @@ python-dotenv==1.0.1
 azure-servicebus==7.12.2
 azure-storage-blob==12.19.0
 azure-cosmos==4.5.1
-langchain-text-splitters==0.2.2
-langchain-openai==0.1.21
-langchain-community==0.2.11
-pypdf==4.3.1
-tiktoken==0.7.0
+langchain-text-splitters==0.3.5
+langchain-openai==0.3.0
+langchain-community==0.3.14
+langchain-core==0.3.29
+pypdf==5.1.0
+tiktoken==0.8.0
+azure-search-documents==11.5.2
+azure-identity==1.19.0

@@ -1,11 +1,13 @@
 #!/bin/bash
 
+RANDOM_STRING=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)
+
 RESOURCE_GROUP_NAME=${RESOURCE_GROUP_NAME:-"rg-autopodcaster"}
 LOCATION=${LOCATION:-"swedencentral"}
 SERVICEBUS_NAMESPACE_NAME=${SERVICEBUS_NAMESPACE_NAME:-"sb-autopodcaster"}
 COSMOSDB_ACCOUNT_NAME=${COSMOSDB_ACCOUNT_NAME:-"cosno-autopodcaster"}
 AI_SEARCH_SERVICE_NAME=${AI_SEARCH_SERVICE_NAME:-"ais-autopodcaster"}
-STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME:-"stautopodcasterdutchdemo"}
+STORAGE_ACCOUNT_NAME=${STORAGE_ACCOUNT_NAME:-"stautopodcaster$RANDOM_STRING"} # Unique name required
 
 az group create --name $RESOURCE_GROUP_NAME --location $LOCATION
 az servicebus namespace create --resource-group $RESOURCE_GROUP_NAME --name $SERVICEBUS_NAMESPACE_NAME --location $LOCATION
@@ -56,7 +58,7 @@ az cosmosdb sql container create --name "subjects" --account-name $COSMOSDB_ACCO
 az cosmosdb sql container create --name "outputs" --account-name $COSMOSDB_ACCOUNT_NAME --database-name "autopodcaster" --resource-group $RESOURCE_GROUP_NAME --partition-key-path "/id"
 
 # Get the connection string for the Cosmos DB account
-COSMOSDB_CONNECTION_STRING=$(az cosmosdb list-connection-strings --name $COSMOSDB_ACCOUNT_NAME --resource-group $RESOURCE_GROUP_NAME --query connectionStrings[0].connectionString --output tsv)
+COSMOSDB_CONNECTION_STRING=$(az cosmosdb keys list --type connection-strings --name $COSMOSDB_ACCOUNT_NAME --resource-group $RESOURCE_GROUP_NAME --query connectionStrings[0].connectionString --output tsv)
 
 # Create an Azure Search service
 az search service create --name $AI_SEARCH_SERVICE_NAME --resource-group $RESOURCE_GROUP_NAME --location $LOCATION --sku standard
@@ -68,7 +70,7 @@ AI_SEARCH_ENDPOINT=https://$AI_SEARCH_SERVICE_NAME.search.windows.net
 AI_SEARCH_ADMIN_KEY=$(az search admin-key show --service-name $AI_SEARCH_SERVICE_NAME --resource-group $RESOURCE_GROUP_NAME --query primaryKey --output tsv)
 
 # Add environment variables for Azure Speech
-echo "AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}" >> .env
+echo "AZURE_SPEECH_KEY=${AZURE_SPEECH_KEY}" > .env
 echo "AZURE_SPEECH_REGION=${AZURE_SPEECH_REGION}" >> .env
 
 # Add environment variables for OpenAI

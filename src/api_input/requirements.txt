@@ -1,0 +1,7 @@
+fastapi[standard]==0.112.0
+uvicorn==0.30.6
+pydantic==2.8.2
+python-dotenv==1.0.1
+azure-servicebus==7.12.2
+azure-cosmos==4.5.1
+azure-storage-blob==12.19.0
